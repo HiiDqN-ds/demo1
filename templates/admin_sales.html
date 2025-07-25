@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block title %}Verkaufsverlauf Admin{% endblock %}
+
+{% block content %}
+<h2>Gesamter Verkaufsverlauf</h2>
+
+<input type="text" id="searchInput" class="form-control mb-3" placeholder="🔍 Suche nach Verkäufer oder Barcode..." onkeyup="filterOrders()">
+
+<div id="sales-container">
+  {% for order in sales %}
+    <div class="card mb-4 p-3 shadow-sm">
+      <h5><strong>Verkäufer:</strong> {{ order.user }}</h5>
+
+      {% if order.date %}
+        {% set fixed_date = (order.date|string).replace("T", " ") %}
+        <p><strong>Datum:</strong> {{ fixed_date[:19] }}</p>
+      {% else %}
+        <p><strong>Datum:</strong> Kein Datum</p>
+      {% endif %}
+
+      <div class="table-responsive">
+        <table class="table table-bordered align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Produkt</th>
+              <th>Barcode</th>
+              <th>Menge</th>
+              <th>Stückpreis (€)</th>
+              <th>Gesamt (€)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in order.get("items", []) %}
+            <tr>
+              <td>{{ item.product_name }}</td>
+              <td>{{ item.barcode }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>{{ "%.2f"|format(item.sale_price) }} €</td>
+              <td>{{ "%.2f"|format(item.total_price) }} €</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="d-flex justify-content-between align-items-center">
+        <h5>Gesamtsumme: <span style="color: green;">€{{ "%.2f"|format(order.total_order_price) }}</span></h5>
+        <div>
+          <!-- 🧾 Quittung Button -->
+          <button onclick='showReceiptInPopup({{ order | tojson | safe }})'  class="btn btn-sm btn-primary">Quittung</button>
+
+
+          <!-- 🗑️ Löschen Button -->
+          <form method="POST"
+                action="{{ url_for('delete_sales_order', order_id=order.order_id) }}"
+                style="display:inline;"
+                onsubmit="return confirm('Diese Bestellung wirklich löschen?');"
+          >
+            <button type="submit" class="btn btn-sm btn-danger">🗑️ Löschen</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <p class="text-center">❌ Keine Verkäufe gefunden.</p>
+  {% endfor %}
+</div>
+
+<script>
+function filterOrders() {
+  const input = document.getElementById("searchInput").value.toLowerCase();
+  const orders = document.querySelectorAll("#sales-container .card");
+
+  orders.forEach(order => {
+    const text = order.textContent.toLowerCase();
+    order.style.display = text.includes(input) ? "" : "none";
+  });
+}
+
+function showReceiptInPopup(order) {
+  const escapeHtml = (unsafe) => {
+    if (!unsafe) return "";
+    return unsafe
+      .toString()
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  };
+
+  const formattedDate = order.date
+    ? order.date.replace("T", " ").slice(0, 19)
+    : "Unbekannt";
+
+  let itemsHTML = "";
+  order.items.forEach(item => {
+    itemsHTML += `
+      <tr>
+        <td>${escapeHtml(item.product_name)}</td>
+        <td>${escapeHtml(item.barcode)}</td>
+        <td>${item.quantity}</td>
+        <td>${Number(item.sale_price).toFixed(2)} €</td>
+        <td>${Number(item.total_price).toFixed(2)} €</td>
+      </tr>`;
+  });
+
+  const receiptHTML = `
+    <!DOCTYPE html>
+    <html lang="de">
+    <head>
+      <meta charset="UTF-8" />
+      <title>Verkaufsquittung</title>
+      <style>
+        @page {
+          size: A4;
+          margin: 20mm;
+        }
+
+        body {
+          font-family: Arial, sans-serif;
+          max-width: 800px;
+          margin: 0 auto;
+          padding: 20px;
+        }
+
+        .header {
+          display: flex;
+          align-items: center;
+          margin-bottom: 10px;
+        }
+
+        .header img {
+          height: 70px;
+          margin-right: 20px;
+        }
+
+        h3, h4, p {
+          margin: 0 0 8px;
+        }
+
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 15px;
+        }
+
+        td, th {
+          border: 1px solid #ccc;
+          padding: 8px;
+          font-size: 14px;
+        }
+
+        th {
+          background-color: #f8f8f8;
+        }
+
+        .total {
+          text-align: right;
+          font-size: 16px;
+          margin-top: 20px;
+        }
+
+        .thanks {
+          text-align: right;
+          margin-top: 10px;
+        }
+
+        @media print {
+          body {
+            width: 100%;
+            padding: 0;
+            margin: 0;
+          }
+
+          .header img {
+            height: 60px;
+          }
+        }
+      </style>
+    </head>
+    <body onload="window.print()">
+      <div class="header">
+        <img src="${location.origin}/static/images/logo.png" alt="Logo" />
+        <div>
+          <h3>Meine Firma</h3>
+          <p>Musterstraße 1, 12345 Musterstadt</p>
+        </div>
+      </div>
+
+      <hr>
+
+      <h4>Verkäufer: ${escapeHtml(order.user)}</h4>
+      <p><strong>Datum:</strong> ${escapeHtml(formattedDate)}</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Produkt</th>
+            <th>Barcode</th>
+            <th>Menge</th>
+            <th>Stückpreis (€)</th>
+            <th>Gesamt (€)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsHTML}
+        </tbody>
+      </table>
+
+      <div class="total">
+        <h4>Gesamtsumme: <span style="color: green;">€${Number(order.total_order_price).toFixed(2)}</span></h4>
+      </div>
+
+      <div class="thanks">
+        <p>Vielen Dank für Ihren Einkauf!</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const popup = window.open('', '_blank', 'width=1024,height=800');
+  popup.document.write(receiptHTML);
+  popup.document.close();
+}
+
+// Simple HTML escaping to prevent injection in popup
+function escapeHtml(text) {
+  if (!text) return "";
+  return text
+    .toString()
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+</script>
+{% endblock %}

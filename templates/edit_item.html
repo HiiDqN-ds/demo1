@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Artikel bearbeiten{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-4">Artikel bearbeiten: {{ item.product_name or item.name }}</h2>
+
+  <form method="POST">
+    <!-- Barcode edit checkbox -->
+    <div class="mb-3 form-check">
+      <input type="checkbox" class="form-check-input" id="edit-barcode-checkbox" name="edit_barcode">
+      <label class="form-check-label" for="edit-barcode-checkbox">Barcode bearbeiten?</label>
+    </div>
+
+    <!-- Barcode input -->
+    <div class="mb-3">
+      <label class="form-label">Barcode</label>
+      <input 
+        name="barcode" 
+        id="barcode-input" 
+        class="form-control" 
+        value="{{ item.barcode }}" 
+        disabled
+        placeholder="Barcode nur bearbeiten, wenn Checkbox aktiviert"
+      >
+    </div>
+
+    <!-- Hidden barcode to keep old value if not editing -->
+    <input type="hidden" name="old_barcode" value="{{ item.barcode }}">
+
+    <!-- Other fields -->
+    <div class="mb-3">
+      <label class="form-label">Name</label>
+      <input name="product_name" class="form-control" value="{{ item.product_name or item.name }}" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Einkaufspreis</label>
+      <input name="purchase_price" type="number" step="0.01" class="form-control" value="{{ item.purchase_price }}" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Verkaufspreis</label>
+      <input name="selling_price" type="number" step="0.01" class="form-control" value="{{ item.selling_price }}" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Minimaler Verkaufspreis</label>
+      <input name="min_selling_price" type="number" step="0.01" class="form-control" value="{{ item.min_selling_price }}" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Menge</label>
+      <input name="quantity" type="number" class="form-control" value="{{ item.quantity }}" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Beschreibung</label>
+      <textarea name="description" class="form-control" rows="3">{{ item.description }}</textarea>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Foto URL (optional)</label>
+      <input name="photo_link" class="form-control" value="{{ item.photo_link }}">
+    </div>
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-success">Änderungen speichern</button>
+      <a href="{{ url_for('list_items') }}" class="btn btn-secondary">Abbrechen</a>
+    </div>
+  </form>
+</div>
+
+<script>
+  const checkbox = document.getElementById('edit-barcode-checkbox');
+  const barcodeInput = document.getElementById('barcode-input');
+
+  checkbox.addEventListener('change', () => {
+    barcodeInput.disabled = !checkbox.checked;
+  });
+</script>
+{% endblock %}
