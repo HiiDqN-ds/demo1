@@ -544,7 +544,7 @@ def barcode_print(barcode_value):
 
 # Add Item
 @app.route('/admin/add_item', methods=['GET', 'POST'], endpoint='add_item')
-@role_required('admin')
+@login_required('admin')
 def add_item():
     if request.method == 'POST':
         form_data = request.form
