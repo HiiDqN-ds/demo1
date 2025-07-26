@@ -9,6 +9,7 @@ from db import *
 from flask_login import LoginManager, UserMixin, login_user, current_user, login_required, logout_user, LoginManager, current_user
 from flask import Response
 import barcode
+
 from barcode.writer import ImageWriter
 import io
 from db import fetch_one, execute_query
