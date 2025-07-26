@@ -544,7 +544,7 @@ def barcode_print(barcode_value):
 from flask_login import login_required
 # Add Item
 @app.route('/admin/add_item', methods=['GET', 'POST'])
-@login_required  # from flask_login
+@login_required('admin')  # from flask_login
 @role_required('admin')  # your custom one
 def add_item():
     if request.method == 'POST':
