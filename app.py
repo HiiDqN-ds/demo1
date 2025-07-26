@@ -30,11 +30,9 @@ app.secret_key = 'your-secret-key'  # required for sessions
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'  # route name of your login page
-
-# ✅ User class compatible with Flask-Login
 class User(UserMixin):
     def __init__(self, user_dict):
-        self.id = user_dict['username']  # required by Flask-Login
+        self.id = user_dict['username']
         self.username = user_dict['username']
         self.role = user_dict.get('role', 'user')
         self.activated = user_dict.get('activated', True)
@@ -42,11 +40,10 @@ class User(UserMixin):
     def is_active(self):
         return self.activated
 
-# ✅ User loader callback
+
 @login_manager.user_loader
 def load_user(user_id):
-    user_data = find_user(user_id)
-    print("DEBUG load_user user_data:", user_data)
+    user_data = find_user(user_id)  # Your user lookup function
     if user_data:
         return User(user_data)
     return None
@@ -56,12 +53,11 @@ def role_required(*roles):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            print(f"DEBUG current_user: {current_user}, is_authenticated={current_user.is_authenticated}, role={getattr(current_user, 'role', None)}")
             if not current_user.is_authenticated:
-                flash("Bitte zuerst einloggen.", "warning")
+                flash('Bitte zuerst einloggen.', 'warning')
                 return redirect(url_for('login'))
             if current_user.role not in roles:
-                flash("Zugriff verweigert – Adminrechte erforderlich.", "danger")
+                flash('Zugriff verweigert – Adminrechte erforderlich.', 'danger')
                 return redirect(url_for('index'))
             return f(*args, **kwargs)
         return decorated_function
@@ -543,38 +539,54 @@ def barcode_print(barcode_value):
 
 
 # Add Item
-@app.route('/admin/add_item', methods=['GET', 'POST'], endpoint='add_item')
+from flask_login import current_user
+
+@app.route('/admin/items/add', methods=['GET', 'POST'])
 @login_required('admin')
 def add_item():
     if request.method == 'POST':
-        form_data = request.form
-        barcode = form_data['barcode']
-
-        items = load_items()
-
-        # ✅ Check for duplicate barcode
-        if any(item.get('barcode') == barcode for item in items):
-            flash(f'⚠️ Ein Artikel mit dem Barcode "{barcode}" existiert bereits!', 'danger')
+        name = request.form['name']
+        barcode = request.form['barcode']
+        purchase_price = float(request.form['purchase_price'])
+        selling_price = float(request.form['selling_price'])
+        min_selling_price = float(request.form['min_selling_price'])
+        quantity = int(request.form['quantity'])
+        description = request.form.get('description', '')
+        
+        # Check for existing barcode in DB
+        existing_item = query_one("SELECT * FROM products WHERE barcode = %s", (barcode,))
+        if existing_item:
+            flash('Barcode already exists', 'danger')
             return redirect(url_for('add_item'))
 
-        # ✅ Create new item with added_date
-        new_item = {
-        "name": form_data['name'],  # rename key here
-        "barcode": barcode,
-        "purchase_price": float(form_data['purchase_price']),
-        "selling_price": float(form_data['selling_price']),
-        "min_selling_price": float(form_data['min_selling_price']),
-        "quantity": int(form_data['quantity']),
-        "description": form_data.get('description', ''),
-        "seller": current_user.id,
-        "added_date": datetime.now().strftime('%Y-%m-%d')
-    }
+        # Insert new item with current_user info and timestamp
+        insert_query = """
+            INSERT INTO products 
+            (product_name, description, quantity, barcode, purchase_price, selling_price, min_selling_price, seller, date_added)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        params = (
+            name,
+            description,
+            quantity,
+            barcode,
+            purchase_price,
+            selling_price,
+            min_selling_price,
+            current_user.username,  # or current_user.id if you prefer
+            datetime.now().strftime('%Y-%m-%d')
+        )
+        print(DB_CONFIG['host'], DB_CONFIG['database'])
+        result = query_one("SELECT * FROM products WHERE barcode = %s", ('sd55353535853',))
+        print("Just inserted?", result)
+        
 
-        insert_item(form_data, current_user)
-        flash('✅ Neuer Artikel hinzugefügt.', 'success')
+        execute_query(insert_query, params)
+        
+        flash('Item added successfully', 'success')
         return redirect(url_for('list_items'))
+    return render_template('add_item.html')
 
-    return render_template('add_item.html', item=None)
 
 # Update Item
 @app.route('/edit_item/<int:item_id>', methods=['GET', 'POST'])
@@ -1180,6 +1192,9 @@ def kasse():
         if typ == 'auszahlung':
             amount = -amount
 
+        from flask import session
+
+        username = session.get('username', 'anonymous')
         query = """
             INSERT INTO cash_transactions (date, amount, type, description, username)
             VALUES (%s, %s, %s, %s, %s);

@@ -5,54 +5,56 @@
 
   <h2>Kasse</h2>
 
-  <!-- Buttons über gesamte Breite -->
-  <div class="mb-3 d-flex gap-2 justify-content-start">
+  <!-- Buttons -->
+  <div class="mb-3 d-flex gap-2 flex-wrap justify-content-start">
     <button class="btn btn-success" onclick="openPopup('einzahlung')">💰 Einzahlung</button>
     <button class="btn btn-danger" onclick="openPopup('auszahlung')">💸 Auszahlung</button>
   </div>
 
-  <!-- Flexbox Container: Tabelle links, Box rechts -->
-  <div style="display: flex; gap: 20px; align-items: flex-start;">
-    <!-- Tabelle, flexibel -->
-    <div style="flex: 1; min-width: 0; overflow-x: auto;">
-      <table class="table table-bordered table-striped">
-        <thead class="table-light">
-          <tr>
-            <th>Datum</th>
-            <th>Typ</th>
-            <th>Betrag</th>
-            <th>Beschreibung</th>
-            <th>Benutzer</th>
-            {% if role == 'admin' %}
-            <th>Aktionen</th>
-            {% endif %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for t in transactions %}
-          <tr>
-            <td>{{ t.date.strftime('%Y-%m-%d %H:%M') }}</td>
-            <td>{{ t.type.capitalize() }}</td>
-            <td style="color: {{ 'green' if t.amount > 0 else 'red' }}">€{{ "{:.2f}".format(t.amount) }}</td>
-            <td>{{ t.description }}</td>
-            <td>{{ t.user }}</td>
-            {% if role == 'admin' %}
-            <td>
-            <form action="{{ url_for('delete_cash_transaction', transaction_id=t.id) }}" method="post" style="display:inline;">
-              <button type="submit" class="btn btn-sm btn-danger">🗑️</button>
-            </form>
-            </td>
-            {% endif %}
-          </tr>
-          {% else %}
-          <tr><td colspan="{{ 6 if role == 'admin' else 5 }}" class="text-center">Keine Einträge vorhanden.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+  <!-- Responsive Row Layout -->
+  <div class="row">
+    <!-- Table Column -->
+    <div class="col-lg-8 col-md-12 mb-4">
+      <div class="table-responsive">
+        <table class="table table-bordered table-striped">
+          <thead class="table-light">
+            <tr>
+              <th>Datum</th>
+              <th>Typ</th>
+              <th>Betrag</th>
+              <th>Beschreibung</th>
+              <th>Benutzer</th>
+              {% if role == 'admin' %}
+              <th>Aktionen</th>
+              {% endif %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in transactions %}
+            <tr>
+              <td>{{ t.date.strftime('%Y-%m-%d %H:%M') }}</td>
+              <td>{{ t.type.capitalize() }}</td>
+              <td style="color: {{ 'green' if t.amount > 0 else 'red' }}">€{{ "{:.2f}".format(t.amount) }}</td>
+              <td>{{ t.description }}</td>
+              <td>{{ t.username }}</td>
+              {% if role == 'admin' %}
+              <td>
+                <form action="{{ url_for('delete_cash_transaction', transaction_id=t.id) }}" method="post" style="display:inline;">
+                  <button type="submit" class="btn btn-sm btn-danger">🗑️</button>
+                </form>
+              </td>
+              {% endif %}
+            </tr>
+            {% else %}
+            <tr><td colspan="{{ 6 if role == 'admin' else 5 }}" class="text-center">Keine Einträge vorhanden.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
 
-    <!-- Box rechts mit fester Breite -->
-    <div style="flex: 0 0 300px;">
+    <!-- Summary Box Column -->
+    <div class="col-lg-4 col-md-12">
       <div class="alert alert-info py-3 px-4 shadow-sm" style="background-color: #d0f0ff; border-radius: 8px;">
         <strong>Aktueller Betrag (Kasse):</strong><br>
         <span style="font-size: 1.4em; color: {{ 'green' if current_balance >= 0 else 'red' }}">
@@ -107,4 +109,14 @@
     document.getElementById('popupForm').style.display = 'none';
   }
 </script>
+
+<!-- Optional responsive tweaks -->
+<style>
+  @media (max-width: 576px) {
+    table td, table th {
+      font-size: 0.85em;
+      white-space: nowrap;
+    }
+  }
+</style>
 {% endblock %}

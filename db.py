@@ -121,28 +121,20 @@ def find_item(item_id):
 
 # Insert a new item into the database
 # Called when an admin adds a new item via the add item form
-
-def insert_item(form_data, current_user):
-    query = """
-        INSERT INTO products 
-        (product_name, description, quantity, barcode, purchase_price, selling_price, min_selling_price, seller, date_added)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
-    """
-
-    params = (
-    form_data['name'],
-    form_data.get('description', ''),
-    int(form_data.get('quantity', 0)),
-    form_data.get('barcode', ''),
-    float(form_data.get('purchase_price', 0)),
-    float(form_data.get('selling_price', 0)),
-    float(form_data.get('min_selling_price', 0)),
-    getattr(current_user, 'username', 'unknown'),  # safer to get username
-    datetime.now().strftime('%Y-%m-%d')
-)
-
-    execute_query(query, params)
-
+def query_one(query, params=None):
+    conn = None
+    try:
+        conn = get_connection()
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(query, params)
+            result = cur.fetchone()  # fetch one record as dict
+        return result
+    except Exception as e:
+        print("Database query error:", e)
+        return None
+    finally:
+        if conn:
+            conn.close()
 # Update an existing item’s details in the database
 # Used when an admin edits an existing item via the edit item form
 def update_item(item_id, updates):
@@ -344,7 +336,7 @@ def barcode_or_order_exists(value):
     return result is not None
 
 def get_item_by_product_name(product_name):
-    query = "SELECT * FROM products WHERE product_name = %s;"
+    query = "SELECT * FROM products WHERE product_name = %s ORDER BY date_added DESC ;"
     return fetch_one(query, (product_name,))
 
 def update_item_quantity_and_prices(product_name, quantity, purchase_price, selling_price, min_selling_price, description):
@@ -363,15 +355,13 @@ def update_item_quantity_and_prices(product_name, quantity, purchase_price, sell
 
 # Crud Orders
 
-
-
 def get_product_id_by_name_or_barcode(product_name, barcode=None):
     conn = get_connection()
     cur = conn.cursor()
     if barcode:
-        cur.execute("SELECT id FROM products WHERE product_name = %s AND barcode = %s", (product_name, barcode))
+        cur.execute("SELECT id FROM products WHERE product_name = %s AND barcode = %s ORDER BY date_added DESC ", (product_name, barcode))
     else:
-        cur.execute("SELECT id FROM products WHERE product_name = %s", (product_name,))
+        cur.execute("SELECT id FROM products WHERE product_name = %s ORDER BY date_added DESC ", (product_name,))
     
     row = cur.fetchone()
     cur.close()
@@ -908,9 +898,13 @@ def get_purchases_for_user(username):
         conn.close()
 
 
-def execute_query(query, params):
-    # Your DB execution function here
-    print("Executing:", query)
-    print("With params:", params)
-    # commit and close your connection here
-
+def execute_query(query, params=None):
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(query, params)
+        conn.commit()  # <== VERY IMPORTANT
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print("Query failed:", e)
