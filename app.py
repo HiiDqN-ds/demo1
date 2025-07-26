@@ -72,7 +72,7 @@ def role_required(*roles):
 
 
 
-
+from flask_login import login_user, login_required, current_user
 
 # Login_required
 def login_required(roles=None):
@@ -542,57 +542,41 @@ def barcode_print(barcode_value):
 
 
 
+# Add Item
 
-from flask_login import login_required, current_user
-
-@app.route('/admin/add_item', methods=['GET', 'POST'])
-@login_required
+@app.route('/admin/add_item', methods=['GET', 'POST'], endpoint='add_item')
+@login_required('admin')
 def add_item():
     if request.method == 'POST':
-        name = request.form['name']
-        barcode = request.form['barcode']
-        purchase_price = float(request.form['purchase_price'])
-        selling_price = float(request.form['selling_price'])
-        min_selling_price = float(request.form['min_selling_price'])
-        quantity = int(request.form['quantity'])
-        description = request.form.get('description', '')
+        form_data = request.form
+        barcode = form_data['barcode']
 
-        try:
-            conn = get_connection()
-            cur = conn.cursor()
+        items = load_items()
 
-            # Check for duplicate barcode
-            cur.execute("SELECT 1 FROM products WHERE barcode = %s", (barcode,))
-            if cur.fetchone():
-                flash(f'⚠️ Ein Artikel mit dem Barcode "{barcode}" existiert bereits!', 'danger')
-                cur.close()
-                conn.close()
-                return redirect(url_for('add_item'))
+        # ✅ Check for duplicate barcode
+        if any(item.get('barcode') == barcode for item in items):
+            flash(f'⚠️ Ein Artikel mit dem Barcode "{barcode}" existiert bereits!', 'danger')
+            return redirect(url_for('add_item'))
 
-            insert_query = """
-                INSERT INTO products (
-                    product_name, barcode, purchase_price, 
-                    selling_price, min_selling_price, quantity, description, seller, added_date
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """
-            cur.execute(insert_query, (
-                name, barcode, purchase_price,
-                selling_price, min_selling_price, quantity, description,
-                current_user.id,
-                datetime.now().strftime('%Y-%m-%d')
-            ))
+        # ✅ Create new item with added_date
+        new_item = {
+        "name": form_data['name'],  # rename key here
+        "barcode": barcode,
+        "purchase_price": float(form_data['purchase_price']),
+        "selling_price": float(form_data['selling_price']),
+        "min_selling_price": float(form_data['min_selling_price']),
+        "quantity": int(form_data['quantity']),
+        "description": form_data.get('description', ''),
+        "seller": current_user.id,
+        "added_date": datetime.now().strftime('%Y-%m-%d')
+    }
 
-            conn.commit()
-            cur.close()
-            conn.close()
-
-            flash('✅ Neuer Artikel hinzugefügt.', 'success')
-            return redirect(url_for('list_items'))  # Update with your route to list items
-        except Exception as e:
-            print("Database error:", e)
-            flash('❌ Fehler beim Hinzufügen des Artikels.', 'danger')
+        insert_item(form_data, current_user)
+        flash('✅ Neuer Artikel hinzugefügt.', 'success')
+        return redirect(url_for('list_items'))
 
     return render_template('add_item.html', item=None)
+
 
 
 
