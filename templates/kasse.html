@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Kasse{% endblock %}
+{% block content %}
+<div class="container mt-4" style="max-width: 1200px;">
+
+  <h2>Kasse</h2>
+
+  <!-- Buttons über gesamte Breite -->
+  <div class="mb-3 d-flex gap-2 justify-content-start">
+    <button class="btn btn-success" onclick="openPopup('einzahlung')">💰 Einzahlung</button>
+    <button class="btn btn-danger" onclick="openPopup('auszahlung')">💸 Auszahlung</button>
+  </div>
+
+  <!-- Flexbox Container: Tabelle links, Box rechts -->
+  <div style="display: flex; gap: 20px; align-items: flex-start;">
+    <!-- Tabelle, flexibel -->
+    <div style="flex: 1; min-width: 0; overflow-x: auto;">
+      <table class="table table-bordered table-striped">
+        <thead class="table-light">
+          <tr>
+            <th>Datum</th>
+            <th>Typ</th>
+            <th>Betrag</th>
+            <th>Beschreibung</th>
+            <th>Benutzer</th>
+            {% if role == 'admin' %}
+            <th>Aktionen</th>
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in transactions %}
+          <tr>
+            <td>{{ t.date.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td>{{ t.type.capitalize() }}</td>
+            <td style="color: {{ 'green' if t.amount > 0 else 'red' }}">€{{ "{:.2f}".format(t.amount) }}</td>
+            <td>{{ t.description }}</td>
+            <td>{{ t.user }}</td>
+            {% if role == 'admin' %}
+            <td>
+            <form action="{{ url_for('delete_cash_transaction', transaction_id=t.id) }}" method="post" style="display:inline;">
+              <button type="submit" class="btn btn-sm btn-danger">🗑️</button>
+            </form>
+            </td>
+            {% endif %}
+          </tr>
+          {% else %}
+          <tr><td colspan="{{ 6 if role == 'admin' else 5 }}" class="text-center">Keine Einträge vorhanden.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Box rechts mit fester Breite -->
+    <div style="flex: 0 0 300px;">
+      <div class="alert alert-info py-3 px-4 shadow-sm" style="background-color: #d0f0ff; border-radius: 8px;">
+        <strong>Aktueller Betrag (Kasse):</strong><br>
+        <span style="font-size: 1.4em; color: {{ 'green' if current_balance >= 0 else 'red' }}">
+          €{{ "{:.2f}".format(current_balance) }}
+        </span>
+        <hr>
+        <strong>Einnahmen (Verkäufe heute):</strong><br>
+        <span style="font-size: 1.2em; color: green;">
+          + €{{ "{:.2f}".format(total_sold_today) }}
+        </span>
+        <hr>
+        <strong>Ausgaben (Bestellungen heute):</strong><br>
+        <span style="font-size: 1.2em; color: red;">
+          − €{{ "{:.2f}".format(total_orders_today) }}
+        </span>
+        <hr>
+        <strong>Berechneter Kassenstand:</strong><br>
+        <span style="font-size: 1.4em; color: {{ 'green' if total_balance >= 0 else 'red' }}">
+          €{{ "{:.2f}".format(total_balance) }}
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Popup Form -->
+<div id="popupForm" style="display: none; position: fixed; top: 20%; left: 50%; transform: translateX(-50%);
+     background: white; padding: 20px; border: 2px solid #ccc; border-radius: 8px; z-index: 1000;">
+  <form method="post">
+    <input type="hidden" name="typ" id="popupTyp">
+    <div class="mb-3">
+      <label>Betrag (€):</label>
+      <input type="number" step="0.01" name="betrag" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label>Beschreibung:</label>
+      <textarea name="beschreibung" class="form-control" rows="2" required></textarea>
+    </div>
+    <div class="d-flex justify-content-between">
+      <button type="submit" class="btn btn-primary">Speichern</button>
+      <button type="button" class="btn btn-secondary" onclick="closePopup()">Abbrechen</button>
+    </div>
+  </form>
+</div>
+
+<script>
+  function openPopup(type) {
+    document.getElementById('popupTyp').value = type;
+    document.getElementById('popupForm').style.display = 'block';
+  }
+  function closePopup() {
+    document.getElementById('popupForm').style.display = 'none';
+  }
+</script>
+{% endblock %}

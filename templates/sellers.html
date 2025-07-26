@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Sellers{% endblock %}
+
+{% block content %}
+<h2>Sellers</h2>
+
+<a href="{{ url_for('add_seller') }}" class="btn btn-primary mb-3">
+  <i class="bi bi-person-plus-fill me-1"></i> Add New Seller
+</a>
+
+<input type="text" id="searchInput" class="form-control mb-3" placeholder="🔍 Suche nach Benutzername..." onkeyup="filterTable()">
+
+<table class="table table-bordered align-middle">
+  <thead class="table-light">
+    <tr>
+      <th>Username</th>
+      <th>Profile Image</th>
+      <th>Salary (€)</th>
+      <th>Activated</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for seller in sellers %}
+    <tr>
+      <td>{{ seller.username }}</td>
+      <td>
+        {% if seller.profile_img %}
+          <img src="{{ seller.profile_img }}" width="50" class="rounded" alt="Profile Image">
+        {% else %}
+          <span class="text-muted">No Image</span>
+        {% endif %}
+      </td>
+      <td>
+        {{ "%.2f"|format(seller.salary) if seller.salary is defined else "N/A" }}
+      </td>
+      <td>{{ '✅' if seller.activated else '❌' }}</td>
+      <td class="d-flex gap-1 flex-wrap">
+
+        <!-- Edit Button -->
+        <a href="{{ url_for('edit_seller', username=seller.username) }}" class="btn btn-sm btn-warning" title="Bearbeiten">
+          <i class="bi bi-pencil-square"></i>
+        </a>
+
+        <!-- Delete Button -->
+        <form method="POST" action="{{ url_for('delete_seller', username=seller.username) }}" onsubmit="return confirm('Delete this seller?');">
+          <button class="btn btn-sm btn-danger" title="Löschen">
+            <i class="bi bi-trash"></i>
+          </button>
+        </form>
+
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5">No sellers found.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<script>
+function filterTable() {
+  const input = document.getElementById("searchInput");
+  const filter = input.value.toLowerCase();
+  const rows = document.querySelectorAll("table tbody tr");
+
+  rows.forEach(row => {
+    const username = row.cells[0].textContent.toLowerCase();
+    row.style.display = username.includes(filter) ? "" : "none";
+  });
+}
+</script>
+{% endblock %}

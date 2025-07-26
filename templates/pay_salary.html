@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Gehalt Auszahlung{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <h2>Gehalt an Mitarbeiter auszahlen</h2>
+  <form method="POST" id="salaryForm">
+    
+    <!-- Mitarbeiter auswählen -->
+    <div class="mb-3">
+      <label for="employee_name" class="form-label">Mitarbeiter auswählen</label>
+      <select class="form-select" id="employee_name" name="employee_name" required>
+        <option value="" disabled selected>-- Mitarbeiter auswählen --</option>
+        {% for user in users %}
+          <option value="{{ user.username }}">{{ user.username }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Gehaltsbetrag -->
+    <div class="mb-3">
+      <label for="salary_amount" class="form-label">Gehalt Betrag (in €)</label>
+      <input type="number" class="form-control" id="salary_amount" name="salary_amount" min="0" required>
+    </div>
+
+    <!-- Zahlungsquelle auswählen -->
+    <div class="mb-3">
+      <label class="form-label">Bezahlt von:</label>
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="payment_source" id="from_drawer" value="Kasse" checked>
+        <label class="form-check-label" for="from_drawer">Aus der Kasse (Ladenschublade)</label>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="payment_source" id="from_pocket" value="Privat">
+        <label class="form-check-label" for="from_pocket">Aus der eigenen Tasche (Privat)</label>
+      </div>
+    </div>
+
+    <!-- Zusätzliche Anmerkungen -->
+    <div class="mb-3">
+      <label for="note" class="form-label">Zusätzliche Anmerkungen</label>
+      <textarea class="form-control" id="note" name="note" rows="3"></textarea>
+    </div>
+
+    <!-- Interaktive Zusammenfassung -->
+    <div class="alert alert-info" id="summaryBox" style="display:none;">
+      <strong>Zahlungsübersicht:</strong> Es werden <span id="summaryAmount">0</span> € an <span id="summaryUser">--</span> aus <span id="summarySource">der Kasse</span> ausgezahlt.
+    </div>
+
+    <button type="submit" class="btn btn-success">Zahlung bestätigen</button>
+  </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const amountInput = document.getElementById('salary_amount');
+  const userSelect = document.getElementById('employee_name');
+  const sourceInputs = document.querySelectorAll('input[name="payment_source"]');
+  const summaryBox = document.getElementById('summaryBox');
+  const summaryAmount = document.getElementById('summaryAmount');
+  const summaryUser = document.getElementById('summaryUser');
+  const summarySource = document.getElementById('summarySource');
+
+  function updateSummary() {
+    const amount = amountInput.value;
+    const user = userSelect.value;
+    const source = document.querySelector('input[name="payment_source"]:checked').value;
+
+    if (amount > 0 && user) {
+      summaryAmount.textContent = amount;
+      summaryUser.textContent = user;
+      summarySource.textContent = source;
+      summaryBox.style.display = 'block';
+    } else {
+      summaryBox.style.display = 'none';
+    }
+  }
+
+  amountInput.addEventListener('input', updateSummary);
+  userSelect.addEventListener('change', updateSummary);
+  sourceInputs.forEach(input => input.addEventListener('change', updateSummary));
+});
+</script>
+{% endblock %}

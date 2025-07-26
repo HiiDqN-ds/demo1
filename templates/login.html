@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+{% block content %}
+<style>
+  /* Center the form in viewport */
+  .login-wrapper {
+    height: 80vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .login-form {
+    width: 320px;
+    padding: 20px 20px 30px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    background-color: white;
+    text-align: center;
+  }
+  .login-logo {
+    width: 100px;
+    height: auto;
+    margin-bottom: 20px;
+  }
+</style>
+
+<div class="login-wrapper">
+  <form method="POST" class="login-form" novalidate>
+    <!-- Logo centered on top -->
+    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="login-logo">
+
+    <h2 class="mb-4">Login</h2>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        {% for msg in messages %}
+          <div class="alert alert-danger" role="alert">{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="mb-3 text-start">
+      <label for="username" class="form-label">Username</label>
+      <input id="username" name="username" class="form-control" required>
+    </div>
+
+    <div class="mb-3 text-start">
+      <label for="password" class="form-label">Password</label>
+      <input id="password" type="password" name="password" class="form-control" required>
+    </div>
+
+    <button class="btn btn-primary w-100" type="submit">Login</button>
+  </form>
+</div>
+{% endblock %}

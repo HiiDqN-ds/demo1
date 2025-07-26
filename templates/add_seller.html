@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Verkäufer hinzufügen{% endblock %}
+{% block content %}
+<h2>Neuen Verkäufer hinzufügen</h2>
+<form method="POST">
+  <div class="mb-3">
+    <label>Benutzername</label>
+    <input name="username" class="form-control" required>
+  </div>
+  <div class="mb-3">
+    <label>Passwort</label>
+    <input name="password" type="password" class="form-control" required>
+  </div>
+  <div class="mb-3">
+    <label>Profilbild-URL (optional)</label>
+    <input name="profile_img" class="form-control">
+  </div>
+  <div class="mb-3">
+    <label>Gehalt</label>
+    <input type="number" step="0.01" name="salary" class="form-control" value="{{ seller.salary if seller else '' }}">
+  </div>
+
+  <div class="mb-3 form-check">
+    <input type="checkbox" name="activated" class="form-check-input" id="activatedCheck" {% if seller and seller.activated %}checked{% endif %}>
+    <label class="form-check-label" for="activatedCheck">Aktiviert</label>
+  </div>
+
+  <button class="btn btn-success" type="submit">Verkäufer hinzufügen</button>
+  <a href="{{ url_for('list_sellers') }}" class="btn btn-secondary">Abbrechen</a>
+</form>
+{% endblock %}

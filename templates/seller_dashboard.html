@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Seller Dashboard{% endblock %}
+
+{% block content %}
+<h1>Willkommen, {{ session['username'] }}!</h1>
+<p style="margin-bottom: 20px;">Rolle: <strong>{{ session['role']|capitalize }}</strong></p>
+
+<div class="stats" style="display: flex; gap: 40px; margin-bottom: 25px; flex-wrap: wrap;">
+  <!-- Wallet -->
+  <div class="stat-box" style="flex: 1; min-width: 160px; padding: 20px; border: 1px solid #ddd; border-radius: 10px; background: #f9f9f9; text-align: center;">
+    <h2>Tägliche Einnahmen</h2>
+    <p style="font-size: 2em; font-weight: bold;">€{{ total_balance | default(0) | round(2) }}</p>
+  </div>
+
+  <!-- Monthly Order Revenue -->
+  <div class="stat-box" style="flex: 1; min-width: 160px; padding: 20px; border: 1px solid #ddd; border-radius: 10px; background: #f9f9f9; text-align: center;">
+    <h2>Gesamt pro Monat</h2>
+    <p style="font-size: 2em; font-weight: bold;">€{{ monthly_total_order_price | default(0) | round(2) }}</p>
+  </div>
+
+  <!-- Total Profit (Monthly) -->
+  <div class="stat-box" style="flex: 1; min-width: 160px; padding: 20px; border: 1px solid #ddd; border-radius: 10px; background: #f9f9f9; text-align: center;">
+    <h2>Monatlicher Gewinn</h2>
+    <p style="font-size: 2em; font-weight: bold;">€{{ monthly_profit | default(0) | round(2) }}</p>
+  </div>
+</div>
+
+  <!-- Total money paid vs items -->
+  <div class="stat-box" style="flex: 1; min-width: 160px; padding: 20px; border: 1px solid #ddd; border-radius: 10px; background: #f9f9f9; text-align: center;">
+    <h2>Tägliche Differenz</h2>
+    <p style="font-size: 2em; font-weight: bold;">€{{ daily_net_difference | default(0) | round(2) }}</p>
+  </div>
+<br>
+<div style="display: flex; flex-wrap: wrap; gap: 30px;">
+  <!-- Sales -->
+  <section style="flex: 1; min-width: 350px; border: 2px solid #a8d5a2; padding: 18px; border-radius: 10px; background: #f0faf0; position: relative;">
+    <h2 style="color: #3a7d44;">Verkäufe (Sales)</h2>
+    <a href="{{ url_for('download_sales_csv') }}" title="CSV herunterladen" style="position: absolute; top: 18px; right: 18px; color: #3a7d44; font-size: 1.3em;">
+      <i class="fa-solid fa-download"></i>
+    </a>
+    <div style="overflow-x: auto; margin-top: 15px;">
+      <table style="width: 100%; border-collapse: separate; border-spacing: 0 8px;">
+        <thead style="background-color: #d9ead3; border-bottom: 2px solid #a8d5a2;">
+          <tr>
+            <th style="padding: 8px 12px; text-align: right;">Datum</th>
+            <th style="padding: 8px 12px; text-align: right;">Artikel</th>
+            <th style="padding: 8px 12px; text-align: center;">Menge</th>
+            <th style="padding: 8px 12px; text-align: right;">Preis/Stück</th>
+            <th style="padding: 8px 12px; text-align: right;">Gesamtpreis</th>
+            <th style="padding: 8px 12px; text-align: right;">Gewinn</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sale in sales %}
+          <tr style="background: white; border-bottom: 1px solid #ccc;">
+            <td>
+              {% if sale.date %}
+                {{ sale.date | datetimeformat('%d.%m.%Y ') }}
+              {% else %}
+                -
+              {% endif %}
+            </td>
+            <td>{{ sale.product_name }}</td>
+            <td style="text-align: center;">{{ sale.quantity }}</td>
+            <td style="text-align: right;">€{{ sale.sale_price | round(2) }}</td>
+            <td style="text-align: right;">€{{ sale.total_price | round(2) }}</td>
+            <td style="text-align: right; font-weight: bold; color: green;">
+              €{{ sale.profit | round(2) }}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" style="text-align:center;">Keine Verkaufsdaten vorhanden.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+
+  <!-- Purchases -->
+  <section style="flex: 1; min-width: 350px; border: 2px solid #e79a9a; padding: 18px; border-radius: 10px; background: #faf0f0; position: relative;">
+  <h2 style="color: #a83a3a;">Einkäufe (Purchases)</h2>
+  <a href="{{ url_for('download_purchases_csv') }}" title="CSV herunterladen" style="position: absolute; top: 18px; right: 18px; color: #a83a3a; font-size: 1.3em;">
+    <i class="fa-solid fa-download"></i>
+  </a>
+  <div style="overflow-x: auto; margin-top: 15px;">
+    <table style="width: 100%; border-collapse: separate; border-spacing: 0 8px;">
+      <thead style="background-color: #f8d7da; border-bottom: 2px solid #a83a3a;">
+        <tr>
+          <th style="padding: 8px 12px; text-align: right;">Datum</th>
+          <th style="padding: 8px 12px; text-align: right;">Artikel</th>
+          <th style="padding: 8px 12px; text-align: center;">Menge</th>
+          <th style="padding: 8px 12px; text-align: right;">Preis/Stück</th>
+          <th style="padding: 8px 12px; text-align: right;">Gesamtpreis</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for purchase in purchases %}
+        <tr style="background: white; border-bottom: 1px solid #ccc;">
+          <td>{{ purchase.date | datetimeformat('%d.%m.%Y %H:%M') if purchase.date else '-' }}</td>
+          <td>{{ purchase.product_name or 'Unbekannt' }}</td>
+          <td style="text-align:center;">{{ purchase.quantity or 0 }}</td>
+          <td style="text-align:right;">€{{ purchase.price | default(0) | round(2) }}</td>
+          <td style="text-align:right;">€{{ (purchase.price * purchase.quantity) | default(0) | round(2) }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" style="text-align:center;">Keine Einkaufsdaten vorhanden.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+</div>
+{% endblock %}

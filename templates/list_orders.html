@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% block title %}Bestellungen{% endblock %}
+
+{% block content %}
+<div class="table-responsive">
+  <h2>Alle Bestellungen</h2>
+  <div class="d-flex justify-content-end mb-3">
+    <a href="{{ url_for('order') }}" class="btn btn-success">Neue Bestellung hinzufügen</a>
+  </div>
+
+  <form method="get" class="mb-3 d-flex gap-2 align-items-end">
+    <div>
+      <label for="user">Benutzer:</label>
+      <select name="user" id="user" class="form-select">
+        <option value="">-- Alle --</option>
+        {% for u in users %}
+          <option value="{{ u }}" {% if request.args.get('user') == u %}selected{% endif %}>{{ u }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="date">Datum:</label>
+      <input type="date" name="date" id="date" value="{{ request.args.get('date', '') }}" class="form-control">
+    </div>
+    <button type="submit" class="btn btn-primary">Filtern</button>
+    <a href="{{ url_for('list_orders') }}" class="btn btn-secondary">Zurücksetzen</a>
+  </form>
+
+  <input type="text" id="searchInput" class="form-control mb-3" placeholder="🔍 Suche nach Produktname oder Barcode..." onkeyup="filterTable()">
+
+  <table class="table table-bordered align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>Barcode</th>
+        <th>Produktname</th>
+        <th>Einkaufspreis (€)</th>
+        <th>Verkaufspreis (€)</th>
+        <th>Min Verkaufspreis (€)</th>
+        <th>Menge</th>
+        <th>Beschreibung</th>
+        <th>Gesamtpreis (€)</th>
+        <th>Datum</th>
+        <th>Benutzer</th>
+        <th>Aktionen</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if orders %}
+        {% for order in orders|sort(attribute='date')|reverse %}
+        <tr>
+          <td>{{ order.order_number }}</td>
+          <td>{{ order.product_name }}</td>
+          <td>{{ order.price | default(0) | round(2) }}</td>
+          <td>{{ order.selling_price | default(0) | round(2) }}</td>
+          <td>{{ order.min_selling_price | default(0) | round(2) }}</td>
+          <td>{{ order.quantity }}</td>
+          <td>{{ order.description or '-' }}</td>
+          <td>€{{ order.total_price | default(0) | round(2) }}</td>
+          <td>{{ order.date }}</td>
+          <td>{{ order.user }}</td>
+          <td class="text-nowrap">
+            <button class="btn btn-outline-primary btn-sm me-1" title="Quittung drucken" onclick="printReceipt({{ loop.index0 }})">
+              <i class="bi bi-receipt me-1"></i>
+            </button>
+            <button class="btn btn-outline-primary btn-sm me-1" title="Code drucken" onclick="printQRCode('{{ order.order_number }}', '{{ order.product_name }}', '{{ order.ref_number or order.order_number }}')">
+              <i class="bi bi-upc-scan"></i>
+            </button>
+
+
+            <img id="barcode_{{ order.order_number }}" style="display:none; margin-top:10px;" width="150" />
+
+            {% if session['role'] == 'admin' %}
+              <a href="{{ url_for('edit_order', order_number=order.order_number) }}" class="btn btn-sm btn-warning me-1" title="Bearbeiten">
+                <i class="bi bi-pencil-square"></i>
+              </a>
+            {% endif %}
+
+            <form action="{{ url_for('delete_order_route', order_number=order.order_number) }}" method="post" onsubmit="return confirm('Bist du sicher?');" style="display:inline-block;">
+              <button type="submit" class="btn btn-sm btn-danger">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td colspan="11" class="text-center text-muted">Keine Bestellungen vorhanden.</td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+const orders = {{ orders | tojson | safe }};
+const username = "{{ session['username']|e }}";
+
+function printReceipt(index) {
+  const order = orders[index];
+  const totalPrice = (order.price * order.quantity).toFixed(2);
+
+  const receiptHTML = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Bestellquittung</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .header img { height: 60px; margin-right: 15px; }
+        .header { display: flex; align-items: center; }
+        .footer { font-size: 0.8em; text-align: right; }
+        table { width: 100%; font-size: 0.95em; }
+        td { padding: 4px 8px; }
+      </style>
+    </head>
+    <body onload="window.print()">
+      <div class="header">
+        <img src="${location.origin}/static/images/logo.png" alt="Logo">
+        <div>
+          <h3>Meine Firma</h3>
+          <p>Musterstraße 1, 12345 Musterstadt<br>Tel: 01234 567890 | info@meinefirma.de</p>
+        </div>
+      </div>
+      <hr>
+      <h4>Bestellquittung</h4>
+      <table>
+        <tr><td><strong>Datum:</strong></td><td>${order.date}</td></tr>
+        <tr><td><strong>Produkt:</strong></td><td>${order.product_name}</td></tr>
+        <tr><td><strong>Referenz:</strong></td><td>${order.ref_number}</td></tr>
+        <tr><td><strong>Beschreibung:</strong></td><td>${order.description || ''}</td></tr>
+        <tr><td><strong>Einheitspreis:</strong></td><td>${parseFloat(order.price).toFixed(2)} €</td></tr>
+        <tr><td><strong>Menge:</strong></td><td>${order.quantity}</td></tr>
+        <tr><td><strong>Gesamtbetrag:</strong></td><td>${totalPrice} €</td></tr>
+        <tr><td><strong>Besteller:</strong></td><td>${order.user || username}</td></tr>
+      </table>
+      <hr>
+      <p class="footer">Vielen Dank für Ihre Bestellung!</p>
+    </body>
+    </html>`;
+    
+  const receiptWindow = window.open('', '_blank', 'width=800,height=600');
+  receiptWindow?.document.write(receiptHTML);
+  receiptWindow?.document.close();
+}
+
+function printQRCode(orderNumber, productName, refNumber) {
+  fetch(`/generate_barcode/${orderNumber}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === "ok") {
+        const barcodePath = data.filename + "?t=" + new Date().getTime(); // avoid cache
+        const html = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Barcode Drucken</title>
+            <style>
+              .label {
+                width: 40mm; height: 30mm;
+                display: flex; flex-direction: column;
+                justify-content: center; align-items: center;
+              }
+              img { max-width: 100%; max-height: 80%; object-fit: contain; }
+              .label-text { font-size: 10px; text-align: center; margin-top: 2mm; }
+            </style>
+          </head>
+          <body onload="window.print()">
+            <div class="label">
+              <img src="${barcodePath}" alt="Barcode">
+              <div class="label-text">
+                ${productName}<br>
+                ${refNumber}
+              </div>
+            </div>
+          </body>
+          </html>`;
+
+        const printWin = window.open('', '_blank', 'width=400,height=400');
+        printWin?.document.write(html);
+        printWin?.document.close();
+      } else {
+        alert("Fehler beim Generieren des Barcodes: " + data.message);
+      }
+    })
+    .catch(err => {
+      console.error("Fehler beim Erzeugen des Barcodes:", err);
+      alert("Ein Fehler ist aufgetreten.");
+    });
+}
+
+
+function generateAndShowBarcode(orderNumber) {
+  fetch(`/generate_barcode/${orderNumber}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === "ok") {
+        const img = document.getElementById("barcode_" + orderNumber);
+        img.src = data.filename + "?t=" + new Date().getTime(); // force reload
+        img.style.display = "block";
+      } else {
+        alert("Fehler beim Erstellen des Barcodes: " + data.message);
+      }
+    })
+    .catch(err => {
+      console.error("Fehler beim Abrufen des Barcodes:", err);
+      alert("Ein Fehler ist aufgetreten.");
+    });
+}
+
+function filterTable() {
+  const input = document.getElementById("searchInput");
+  const filter = input.value.toLowerCase();
+  const rows = document.querySelectorAll("table tbody tr");
+
+  rows.forEach(row => {
+    const barcode = row.cells[0].textContent.toLowerCase();
+    const productName = row.cells[1].textContent.toLowerCase();
+    row.style.display = barcode.includes(filter) || productName.includes(filter) ? "" : "none";
+  });
+}
+</script>
+{% endblock %}
