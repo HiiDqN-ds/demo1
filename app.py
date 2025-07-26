@@ -153,25 +153,42 @@ def calculate_all_time_profit(sales, items):
     return round(profit, 2)
 
 from datetime import datetime
+from flask import render_template, session
 
 @app.route('/admin')
 @login_required('admin')
 def admin_dashboard():
     now = datetime.now()
     today = now.date()
+    month_start = datetime(now.year, now.month, 1)
 
-    # Load data
-    sales = load_sales()       # includes items with 'profit'
+    # Load core data
+    sales = load_sales()  # List of sales with 'items' and 'profit'
     purchases = load_orders()
     items = load_items()
     kasse_balance = load_kasse_balance()
-
     dismissed = set(session.get('dismissed_notifications', []))
 
+    # Profit for today
     heutiger_gewinn = calculate_today_profit()
     monatliche_einnahmen = calculate_monthly_sales()
 
-    # Calculate daily income from sales
+    # 💰 Monthly cash transactions: Einzahlungen & Auszahlungen
+    einzahlungen_query = """
+        SELECT SUM(amount) AS total FROM cash_transactions 
+        WHERE type = 'einzahlung' AND date >= %s;
+    """
+    einzahlungen_result = fetch_one(einzahlungen_query, (month_start,))
+    monatliche_einzahlungen_kasse = einzahlungen_result['total'] or 0
+
+    auszahlungen_query = """
+        SELECT SUM(amount) AS total FROM cash_transactions 
+        WHERE type = 'auszahlung' AND date >= %s;
+    """
+    auszahlungen_result = fetch_one(auszahlungen_query, (month_start,))
+    monatliche_auszahlungen_kasse = auszahlungen_result['total'] or 0
+
+    # Calculate today's total sales
     taegliche_einnahmen = 0
     for sale in sales:
         sale_date = sale.get('date')
@@ -185,7 +202,7 @@ def admin_dashboard():
                 taegliche_einnahmen += float(item.get('total_price', 0))
     taegliche_einnahmen = round(taegliche_einnahmen, 2)
 
-    # Calculate purchases totals (daily & monthly)
+    # Calculate today's and monthly purchases
     daily_purchases_total = 0
     monthly_purchases_total = 0
     for p in purchases:
@@ -204,10 +221,10 @@ def admin_dashboard():
     daily_purchases_total = round(daily_purchases_total, 2)
     monthly_purchases_total = round(monthly_purchases_total, 2)
 
-    # Calculate cash balance after sales & purchases today
+    # 💡 Calculated cashbox balance for today
     berechneter_kassenstand = round(kasse_balance + taegliche_einnahmen - daily_purchases_total, 2)
 
-    # Notifications filtering dismissed ones
+    # 📦 Notifications (low stock, old stock)
     low_stock_notes = get_low_stock_notifications(items, threshold=5)
     old_stock_notes = get_old_stock_notifications(items, days_old=21)
     warehouse_notifications = [
@@ -224,7 +241,7 @@ def admin_dashboard():
         for note in warehouse_notifications
     ]
 
-    # Sort sales and purchases by date descending
+    # Sort by date
     sales_sorted = sorted(sales, key=lambda x: x.get('date', datetime.min), reverse=True)
     purchases_sorted = sorted(purchases, key=lambda x: x.get('order_date', datetime.min), reverse=True)
 
@@ -244,7 +261,10 @@ def admin_dashboard():
         mailbox_notifications=mailbox_notifications,
         warehouse_notifications=warehouse_notifications,
         total_order_sum=total_order_sum,
+        monatliche_einzahlungen_kasse=monatliche_einzahlungen_kasse,
+        monatliche_auszahlungen_kasse=monatliche_auszahlungen_kasse,
     )
+
 
 
 
@@ -562,8 +582,8 @@ def add_item():
         # Insert new item with current_user info and timestamp
         insert_query = """
             INSERT INTO products 
-            (product_name, description, quantity, barcode, purchase_price, selling_price, min_selling_price, seller, date_added)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            (product_name, description, quantity, barcode, purchase_price, selling_price, min_selling_price, date_added)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """
         params = (
             name,
@@ -573,13 +593,20 @@ def add_item():
             purchase_price,
             selling_price,
             min_selling_price,
-            current_user.username,  # or current_user.id if you prefer
-            datetime.now().strftime('%Y-%m-%d')
+            datetime.now().strftime('%Y-%m-%d')  # date_added
         )
+        print("Params count:", len(params))  # Should print 9
+
         print(DB_CONFIG['host'], DB_CONFIG['database'])
-        result = query_one("SELECT * FROM products WHERE barcode = %s", ('sd55353535853',))
+        result = query_one(
+        "SELECT * FROM products ORDER BY date_added DESC LIMIT 1",
+        (barcode,)
+    )
+
         print("Just inserted?", result)
         
+        print("Executing insert with params:", params)
+
 
         execute_query(insert_query, params)
         
@@ -1165,16 +1192,19 @@ def list_salary_payments():
 
 
 
-# Kasse
+import csv
+from io import StringIO
+from flask import Response, session
+
 @app.route('/kasse', methods=['GET', 'POST'])
 def kasse():
-    role = 'admin'  # Replace with session logic
+    role = 'admin'  # Replace with your session logic
 
     if request.method == 'POST':
         typ = request.form.get('typ')  # 'einzahlung' or 'auszahlung'
         betrag = request.form.get('betrag')
         beschreibung = request.form.get('beschreibung')
-        username = 'current_username'  # Replace with actual user from session
+        username = session.get('username', 'anonymous')  # get from session
 
         if typ not in ('einzahlung', 'auszahlung'):
             flash('Ungültiger Typ')
@@ -1192,19 +1222,37 @@ def kasse():
         if typ == 'auszahlung':
             amount = -amount
 
-        from flask import session
-
-        username = session.get('username', 'anonymous')
         query = """
             INSERT INTO cash_transactions (date, amount, type, description, username)
             VALUES (%s, %s, %s, %s, %s);
         """
         params = (datetime.now(), abs(amount), typ, beschreibung, username)
         execute_query(query, params)
-        flash('Transaktion erfolgreich gespeichert')
+        flash('Transaktion erfolgreich gespeichert','success')
         return redirect(url_for('kasse'))
 
-    # Fetch transactions
+    # Handle CSV download if requested
+    if request.args.get('download') == 'csv':
+        transactions = fetch_all("SELECT * FROM cash_transactions ORDER BY date DESC;")
+        si = StringIO()
+        cw = csv.writer(si)
+        cw.writerow(['Datum', 'Typ', 'Betrag', 'Beschreibung', 'Benutzer'])
+        for t in transactions:
+            cw.writerow([
+                t['date'].strftime('%Y-%m-%d %H:%M'),
+                t['type'],
+                f"{t['amount']:.2f}",
+                t['description'],
+                t['username']
+            ])
+        output = si.getvalue()
+        return Response(
+            output,
+            mimetype="text/csv",
+            headers={"Content-disposition": "attachment; filename=transactions.csv"}
+        )
+
+    # Fetch transactions for display
     transactions = fetch_all("SELECT * FROM cash_transactions ORDER BY date DESC;")
 
     # Calculate current balance
@@ -1212,21 +1260,27 @@ def kasse():
         t['amount'] if t['type'] == 'einzahlung' else -t['amount'] for t in transactions
     )
 
-    # Get today's date
     today = date.today()
 
-    # 🔹 Fetch total sales from 'sales' table for today
     sales_query = "SELECT SUM(total_sale_price) AS total FROM sales WHERE DATE(sale_date) = %s;"
     sales_result = fetch_one(sales_query, (today,))
     total_sold_today = sales_result['total'] if sales_result['total'] is not None else 0
 
-    # 🔹 Fetch total orders from 'orders' table for today
     orders_query = "SELECT SUM(total_price) AS total FROM orders WHERE DATE(date) = %s;"
     orders_result = fetch_one(orders_query, (today,))
     total_orders_today = orders_result['total'] if orders_result['total'] is not None else 0
 
-    # Optional: Calculate theoretical cash balance
     total_balance = current_balance + total_sold_today - total_orders_today
+
+    # Monthly summary: sum of amounts grouped by month (adjust sign by type)
+    monthly_summary = fetch_all("""
+        SELECT 
+            DATE_TRUNC('month', date) AS month,
+            SUM(CASE WHEN type = 'einzahlung' THEN amount ELSE -amount END) AS total
+        FROM cash_transactions
+        GROUP BY month
+        ORDER BY month DESC;
+    """)
 
     return render_template(
         'kasse.html',
@@ -1235,6 +1289,7 @@ def kasse():
         total_sold_today=total_sold_today,
         total_orders_today=total_orders_today,
         total_balance=total_balance,
+        monthly_summary=monthly_summary,
         role=role
     )
 

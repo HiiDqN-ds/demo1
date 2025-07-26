@@ -5,6 +5,31 @@
 
   <h2>Kasse</h2>
 
+  <!-- CSV Download Button -->
+  <div class="mb-3">
+    <a href="{{ url_for('kasse', download='csv') }}" class="btn btn-outline-primary">
+      📥 Download CSV Historie
+    </a>
+  </div>
+        <!-- Monthly summary box -->
+      <div class="alert alert-secondary py-3 px-4 shadow-sm mt-4" style="border-radius: 8px;">
+        <strong>Monatliche Zusammenfassung (Saldo pro Monat):</strong>
+        <ul class="mb-0" style="list-style: none; padding-left: 0;">
+          {% for item in monthly_summary %}
+            <li>
+              {{ item.month.strftime('%Y-%m') }}:
+              <span style="color: {{ 'green' if item.total >= 0 else 'red' }}">
+                €{{ "%.2f"|format(item.total) }}
+              </span>
+            </li>
+          {% else %}
+            <li>Keine Daten vorhanden.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
   <!-- Buttons -->
   <div class="mb-3 d-flex gap-2 flex-wrap justify-content-start">
     <button class="btn btn-success" onclick="openPopup('einzahlung')">💰 Einzahlung</button>
@@ -52,7 +77,7 @@
         </table>
       </div>
     </div>
-
+    
     <!-- Summary Box Column -->
     <div class="col-lg-4 col-md-12">
       <div class="alert alert-info py-3 px-4 shadow-sm" style="background-color: #d0f0ff; border-radius: 8px;">
@@ -76,14 +101,13 @@
           €{{ "{:.2f}".format(total_balance) }}
         </span>
       </div>
-    </div>
-  </div>
-</div>
+
+
 
 <!-- Popup Form -->
 <div id="popupForm" style="display: none; position: fixed; top: 20%; left: 50%; transform: translateX(-50%);
      background: white; padding: 20px; border: 2px solid #ccc; border-radius: 8px; z-index: 1000;">
-  <form method="post">
+  <form method="post" onsubmit="return disableSubmit(this)">
     <input type="hidden" name="typ" id="popupTyp">
     <div class="mb-3">
       <label>Betrag (€):</label>
@@ -93,8 +117,9 @@
       <label>Beschreibung:</label>
       <textarea name="beschreibung" class="form-control" rows="2" required></textarea>
     </div>
-    <div class="d-flex justify-content-between">
-      <button type="submit" class="btn btn-primary">Speichern</button>
+    <div class="d-flex justify-content-between align-items-center">
+      <button type="submit" class="btn btn-primary" id="submitBtn">Speichern</button>
+      <span id="processingText" style="display:none; margin-left:10px;">⏳ Verarbeitung...</span>
       <button type="button" class="btn btn-secondary" onclick="closePopup()">Abbrechen</button>
     </div>
   </form>
@@ -104,11 +129,28 @@
   function openPopup(type) {
     document.getElementById('popupTyp').value = type;
     document.getElementById('popupForm').style.display = 'block';
+    resetFormState();
   }
   function closePopup() {
     document.getElementById('popupForm').style.display = 'none';
   }
+
+  function disableSubmit(form) {
+    const btn = form.querySelector('#submitBtn');
+    const processingText = form.querySelector('#processingText');
+    btn.disabled = true;
+    processingText.style.display = 'inline';
+    return true;  // Allow form submission
+  }
+
+  function resetFormState() {
+    const btn = document.getElementById('submitBtn');
+    const processingText = document.getElementById('processingText');
+    btn.disabled = false;
+    processingText.style.display = 'none';
+  }
 </script>
+
 
 <!-- Optional responsive tweaks -->
 <style>

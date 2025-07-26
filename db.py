@@ -898,13 +898,14 @@ def get_purchases_for_user(username):
         conn.close()
 
 
-def execute_query(query, params=None):
+def execute_query(query, params):
+    conn = get_connection()
+    cur = conn.cursor()
     try:
-        conn = get_connection()
-        cur = conn.cursor()
         cur.execute(query, params)
-        conn.commit()  # <== VERY IMPORTANT
-        cur.close()
-        conn.close()
+        conn.commit()   # <-- Make sure this is here!
     except Exception as e:
         print("Query failed:", e)
+    finally:
+        cur.close()
+        conn.close()
