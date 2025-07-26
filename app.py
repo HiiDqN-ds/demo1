@@ -106,7 +106,7 @@ def index():
 
 from flask_login import login_user
 
-@app.route('/login', methods=['GET','POST'])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         username = request.form['username']
@@ -117,18 +117,15 @@ def login():
                 flash('Your account is not activated yet.', 'warning')
                 return redirect(url_for('login'))
             
-            user = User(user_data)  # Create a User object compatible with Flask-Login
-            
-            login_user(user)  # <-- This sets current_user properly
-            
-            # You can still keep session info if you want, but it's optional
-            session['role'] = user.role
+            user = User(user_data)  # Create a User object for Flask-Login
+            login_user(user)        # THIS LOGS IN THE USER
             
             flash(f'Welcome {username}!', 'success')
             return redirect(url_for('index'))
         else:
             flash('Invalid credentials', 'danger')
     return render_template('login.html')
+
 
 
 # Logout
@@ -549,39 +546,20 @@ def barcode_print(barcode_value):
 
 
 # Add Item
+from flask_login import login_required, current_user
 
-@app.route('/admin/add_item', methods=['GET', 'POST'], endpoint='add_item')
-@login_required('admin')
+@app.route('/admin/add_item', methods=['GET', 'POST'])
+@login_required
 def add_item():
     if request.method == 'POST':
-        form_data = request.form
-        barcode = form_data['barcode']
-
-        items = load_items()
-
-        # ✅ Check for duplicate barcode
-        if any(item.get('barcode') == barcode for item in items):
-            flash(f'⚠️ Ein Artikel mit dem Barcode "{barcode}" existiert bereits!', 'danger')
-            return redirect(url_for('add_item'))
-
-        # ✅ Create new item with added_date
-        new_item = {
-        "name": form_data['name'],  # rename key here
-        "barcode": barcode,
-        "purchase_price": float(form_data['purchase_price']),
-        "selling_price": float(form_data['selling_price']),
-        "min_selling_price": float(form_data['min_selling_price']),
-        "quantity": int(form_data['quantity']),
-        "description": form_data.get('description', ''),
-        "seller": current_user.id,
-        "added_date": datetime.now().strftime('%Y-%m-%d')
-    }
-
-        insert_item(form_data, current_user)
-        flash('✅ Neuer Artikel hinzugefügt.', 'success')
+        try:
+            insert_item(request.form, current_user)
+            flash('Item added successfully', 'success')
+        except Exception as e:
+            flash(f'Error adding item: {str(e)}', 'danger')
         return redirect(url_for('list_items'))
+    return render_template('add_item.html')
 
-    return render_template('add_item.html', item=None)
 
 
 
