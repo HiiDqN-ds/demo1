@@ -542,10 +542,9 @@ def barcode_print(barcode_value):
 
 
 
-from flask_login import login_required
-# Add Item
 @app.route('/admin/add_item', methods=['GET', 'POST'])
-
+@login_required
+@role_required('admin')  # This is okay — it uses current_user
 def add_item():
     if request.method == 'POST':
         form_data = request.form
