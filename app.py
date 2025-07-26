@@ -72,7 +72,7 @@ def role_required(*roles):
 
 
 
-from flask_login import login_user, login_required, current_user
+
 
 # Login_required
 def login_required(roles=None):
@@ -104,28 +104,25 @@ def index():
     else:
         return redirect(url_for('login'))
 
-from flask_login import login_user
 
-@app.route('/login', methods=['GET', 'POST'])
+# Login
+@app.route('/login', methods=['GET','POST'])
 def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        user_data = find_user(username)
-        if user_data and check_password_hash(user_data['password'], password):
-            if not user_data['activated']:
+        user = find_user(username)
+        if user and check_password_hash(user['password'], password):
+            if not user['activated']:
                 flash('Your account is not activated yet.', 'warning')
                 return redirect(url_for('login'))
-            
-            user = User(user_data)  # Create a User object for Flask-Login
-            login_user(user)        # THIS LOGS IN THE USER
-            
+            session['username'] = user['username']
+            session['role'] = user['role']
             flash(f'Welcome {username}!', 'success')
             return redirect(url_for('index'))
         else:
             flash('Invalid credentials', 'danger')
     return render_template('login.html')
-
 
 
 # Logout
@@ -546,34 +543,38 @@ def barcode_print(barcode_value):
 
 
 # Add Item
-from flask_login import login_required, current_user
-
-@app.route('/admin/add_item', methods=['GET', 'POST'])
-@login_required
+@app.route('/admin/add_item', methods=['GET', 'POST'], endpoint='add_item')
+@login_required('admin')
 def add_item():
     if request.method == 'POST':
-        try:
-            insert_item(request.form, current_user)
-            flash('Item added successfully', 'success')
-        except Exception as e:
-            flash(f'Error adding item: {str(e)}', 'danger')
+        form_data = request.form
+        barcode = form_data['barcode']
+
+        items = load_items()
+
+        # ✅ Check for duplicate barcode
+        if any(item.get('barcode') == barcode for item in items):
+            flash(f'⚠️ Ein Artikel mit dem Barcode "{barcode}" existiert bereits!', 'danger')
+            return redirect(url_for('add_item'))
+
+        # ✅ Create new item with added_date
+        new_item = {
+        "name": form_data['name'],  # rename key here
+        "barcode": barcode,
+        "purchase_price": float(form_data['purchase_price']),
+        "selling_price": float(form_data['selling_price']),
+        "min_selling_price": float(form_data['min_selling_price']),
+        "quantity": int(form_data['quantity']),
+        "description": form_data.get('description', ''),
+        "seller": current_user.id,
+        "added_date": datetime.now().strftime('%Y-%m-%d')
+    }
+
+        insert_item(form_data, current_user)
+        flash('✅ Neuer Artikel hinzugefügt.', 'success')
         return redirect(url_for('list_items'))
-    return render_template('add_item.html')
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    return render_template('add_item.html', item=None)
 
 # Update Item
 @app.route('/edit_item/<int:item_id>', methods=['GET', 'POST'])
