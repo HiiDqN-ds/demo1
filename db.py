@@ -10,12 +10,12 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 
 DB_CONFIG = {
-    'host': 'dpg-d20c8smuk2gs73c51nmg-a',
+    'host': 'dpg-d20c8smuk2gs73c51nmg-a.oregon-postgres.render.com',
     'database': 'storemngm',
     'user': 'admin',
-    'password': 'bq3zkOkTA5F13FaLHimwpsCnEsSFGJIs'
-}
+    'password': 'bq3zkOkTA5F13FaLHimwpsCnEsSFGJIs',
 
+}
 
 logger = logging.getLogger(__name__)
 
@@ -910,3 +910,25 @@ def get_purchases_for_user(username):
         conn.close()
 
 
+# --- Insert product into DB ---
+def insert_item_to_db(item):
+    conn = psycopg2.connect(**DB_CONFIG)
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO products 
+        (product_name, barcode, purchase_price, selling_price, min_selling_price, quantity, description, seller, date_added)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, (
+        item['name'],
+        item['barcode'],
+        item['purchase_price'],
+        item['selling_price'],
+        item['min_selling_price'],
+        item['quantity'],
+        item['description'],
+        item['seller'],
+        item['added_date']
+    ))
+    conn.commit()
+    cursor.close()
+    conn.close()

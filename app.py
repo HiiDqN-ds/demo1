@@ -52,19 +52,18 @@ def load_user(user_id):
     return None
 
 # ✅ Custom role_required decorator
-def role_required(*roles):
+def role_required(role_name):
     def decorator(f):
         @wraps(f)
-        def decorated_function(*args, **kwargs):
-            print(f"DEBUG current_user: {current_user}, is_authenticated={current_user.is_authenticated}, role={getattr(current_user, 'role', None)}")
+        def wrapped(*args, **kwargs):
             if not current_user.is_authenticated:
-                flash("Bitte zuerst einloggen.", "warning")
-                return redirect(url_for('login'))
-            if current_user.role not in roles:
-                flash("Zugriff verweigert – Adminrechte erforderlich.", "danger")
-                return redirect(url_for('index'))
+                flash("Bitte einloggen.", "warning")
+                return redirect(url_for("login"))
+            if getattr(current_user, "role", None) != role_name:
+                flash("Keine Berechtigung.", "danger")
+                return redirect(url_for("index"))
             return f(*args, **kwargs)
-        return decorated_function
+        return wrapped
     return decorator
 
 
@@ -542,9 +541,11 @@ def barcode_print(barcode_value):
 
 
 
+from flask_login import login_required
 # Add Item
-@app.route('/admin/add_item', methods=['GET', 'POST'], endpoint='add_item')
-@login_required('admin')
+@app.route('/admin/add_item', methods=['GET', 'POST'])
+@login_required  # from flask_login
+@role_required('admin')  # your custom one
 def add_item():
     if request.method == 'POST':
         form_data = request.form
