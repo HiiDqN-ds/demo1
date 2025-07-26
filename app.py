@@ -104,20 +104,26 @@ def index():
     else:
         return redirect(url_for('login'))
 
+from flask_login import login_user
 
-# Login
 @app.route('/login', methods=['GET','POST'])
 def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        user = find_user(username)
-        if user and check_password_hash(user['password'], password):
-            if not user['activated']:
+        user_data = find_user(username)
+        if user_data and check_password_hash(user_data['password'], password):
+            if not user_data['activated']:
                 flash('Your account is not activated yet.', 'warning')
                 return redirect(url_for('login'))
-            session['username'] = user['username']
-            session['role'] = user['role']
+            
+            user = User(user_data)  # Create a User object compatible with Flask-Login
+            
+            login_user(user)  # <-- This sets current_user properly
+            
+            # You can still keep session info if you want, but it's optional
+            session['role'] = user.role
+            
             flash(f'Welcome {username}!', 'success')
             return redirect(url_for('index'))
         else:
