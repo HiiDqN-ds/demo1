@@ -53,19 +53,21 @@ def load_user(user_id):
     return None
 
 # ✅ Custom role_required decorator
-def role_required(role_name):
+def role_required(*roles):
     def decorator(f):
         @wraps(f)
-        def wrapped(*args, **kwargs):
+        def decorated_function(*args, **kwargs):
+            print(f"DEBUG current_user: {current_user}, is_authenticated={current_user.is_authenticated}, role={getattr(current_user, 'role', None)}")
             if not current_user.is_authenticated:
-                flash("Bitte einloggen.", "warning")
-                return redirect(url_for("login"))
-            if getattr(current_user, "role", None) != role_name:
-                flash("Keine Berechtigung.", "danger")
-                return redirect(url_for("index"))
+                flash("Bitte zuerst einloggen.", "warning")
+                return redirect(url_for('login'))
+            if current_user.role not in roles:
+                flash("Zugriff verweigert – Adminrechte erforderlich.", "danger")
+                return redirect(url_for('index'))
             return f(*args, **kwargs)
-        return wrapped
+        return decorated_function
     return decorator
+
 
 
 
