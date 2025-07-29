@@ -125,7 +125,7 @@ def login():
 @app.route('/logout')
 def logout():
     session.clear()
-    flash('Logged out', 'success')
+    #flash('Logged out', 'success')
     return redirect(url_for('login'))
 
 
@@ -767,11 +767,26 @@ def sell_item():
 
             # Flash success per item
             product_name = item.get("product_name") or "Produkt"
-            flash(f'✅ Verkauf von {quantity} × {product_name} erfolgreich.', 'success')
+           
 
             # Low stock warning
             if updated_quantities[barcode] <= 5:
-                flash(f'⚠️ Achtung: Nur noch {updated_quantities[barcode]} Stück von {product_name} auf Lager!', 'warning')
+                # After all items are processed successfully
+
+                # Prepare summary message:
+                success_msg = "✅ Verkauf erfolgreich für folgende Produkte:\n"
+                warnings = []
+                for item in sale_items:
+                    success_msg += f"- {item['quantity']} × {item['product_name']}\n"
+                    if updated_quantities[item['barcode']] <= 5:
+                        warnings.append(f"⚠️ Achtung: Nur noch {updated_quantities[item['barcode']]} Stück von {item['product_name']} auf Lager!")
+
+                # Flash success message
+                flash(success_msg, 'success')
+
+                # Flash any warnings separately if exist
+                
+
 
         # At this point, all validation passed and sale_items prepared
 
