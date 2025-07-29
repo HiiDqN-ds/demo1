@@ -580,6 +580,7 @@ def add_item():
             return redirect(url_for('add_item'))
 
         # Insert new item with current_user info and timestamp
+        username = session.get('username', 'anonymous')  # get from session
         insert_query = """
             INSERT INTO products 
             (product_name, description, quantity, barcode, purchase_price, selling_price, min_selling_price, date_added)
@@ -593,6 +594,7 @@ def add_item():
             purchase_price,
             selling_price,
             min_selling_price,
+            current_user.username,
             datetime.now().strftime('%Y-%m-%d')  # date_added
         )
         print("Params count:", len(params))  # Should print 9
