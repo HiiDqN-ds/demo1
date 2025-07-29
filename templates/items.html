@@ -83,7 +83,8 @@
     {% endfor %}
   </tbody>
 </table>
-
+<!-- Edit Code
+ -->
 <script>
 function filterTable() {
   const input = document.getElementById("searchInput");
@@ -115,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function printBarcode(barcode, productName) {
   const barcodeUrl = `${location.origin}/admin/items/barcode_print/${barcode}`;
-
+  
   const html = `
     <!DOCTYPE html>
     <html>
