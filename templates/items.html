@@ -83,8 +83,7 @@
     {% endfor %}
   </tbody>
 </table>
-<!-- Edit Code
- -->
+
 <script>
 function filterTable() {
   const input = document.getElementById("searchInput");
@@ -113,10 +112,10 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.style.display = 'inline-block';
   });
 });
-
 function printBarcode(barcode, productName) {
-  const barcodeUrl = `${location.origin}/admin/items/barcode_print/${barcode}`;
-  
+  const qrSrc = `${location.origin}/admin/items/barcode_print/${barcode}`;
+
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -137,15 +136,14 @@ function printBarcode(barcode, productName) {
             page-break-after: always;
           }
           img {
-            width: 36mm;
-            height: 18mm;
-            image-rendering: pixelated;
+            max-width: 100%;
+            max-height: 80%;
+            object-fit: contain;
           }
           .label-text {
-            font-size: 11px;
+            font-size: 10px;
             text-align: center;
-            margin-top: 1mm;
-            font-family: Arial, sans-serif;
+            margin-top: 2mm;
           }
         }
 
@@ -161,34 +159,35 @@ function printBarcode(barcode, productName) {
           align-items: center;
         }
         img {
-          width: 36mm;
-          height: 18mm;
-          image-rendering: pixelated;
+          max-width: 100%;
+          max-height: 80%;
+          object-fit: contain;
         }
         .label-text {
-          font-size: 11px;
+          font-size: 10px;
           text-align: center;
-          margin-top: 1mm;
-          font-family: Arial, sans-serif;
+          margin-top: 2mm;
         }
       </style>
     </head>
-    <body onload="window.print(); window.close();">
+    <body onload="window.print()">
       <div class="label">
-        <img src="${barcodeUrl}" alt="Barcode">
-        <div class="label-text">${productName}</div>
+        <img src="${qrSrc}" alt="Barcode">
+        <div class="label-text">
+          ${productName}
+        </div>
       </div>
     </body>
     </html>
   `;
 
-  const printWindow = window.open('', '_blank', 'width=400,height=300');
-  if (printWindow) {
-    printWindow.document.open();
-    printWindow.document.write(html);
-    printWindow.document.close();
+  const win = window.open('', '_blank', 'width=400,height=300');
+  if (win) {
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
   } else {
-    alert("Pop-up blockiert – bitte im Browser erlauben.");
+    alert("Pop-up blockiert – bitte zulassen.");
   }
 }
 </script>

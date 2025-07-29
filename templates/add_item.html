@@ -34,6 +34,8 @@
     <textarea name="description" class="form-control" rows="3">{{ item.description if item else '' }}</textarea>
   </div>
   <button class="btn btn-success" type="submit">Artikel hinzufügen</button>
-  <a href="{{ url_for('add_item') }}" class="btn btn-secondary">Abbrechen</a>
+
+  <a href="{{ url_for('list_items') }}" class="btn btn-secondary">Abbrechen</a>
+
 </form>
 {% endblock %}
